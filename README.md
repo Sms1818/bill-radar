@@ -61,13 +61,14 @@ flowchart TD
 
 ## Prerequisites
 
-Install the following before running the project:
-
+For local development:
 - Java 21
 - Docker Desktop with Docker Compose
 - Git
 
-The Maven Wrapper (`mvnw`) is included, so a separate Maven installation should not be necessary.
+The Maven Wrapper (`mvnw`) is included, so a separate Maven installation is not required.
+
+To run Bill Radar as a container, Docker Desktop is sufficient for building and running the application image. PostgreSQL must still be available separately.
 
 ## Getting Started
 
@@ -77,8 +78,6 @@ The Maven Wrapper (`mvnw`) is included, so a separate Maven installation should 
 git clone https://github.com/Sms1818/bill-radar.git
 cd bill-radar
 ```
-
-Replace `YOUR_USERNAME` with the GitHub account that hosts the repository.
 
 ### 2. Configure environment variables
 
@@ -153,6 +152,48 @@ Once the application starts, open:
 **http://localhost:8080**
 
 The dashboard uses the Spring Boot application to access the backend API.
+
+## Running with Docker
+
+Bill Radar includes a multi-stage `Dockerfile` that builds the Spring Boot application with Java 21 and packages it into a Java runtime image. The following instructions are for local Docker testing. Production deployments require the appropriate database connection and environment variables.
+
+### Build the image
+
+From the project root:
+
+```bash
+docker build -t bill-radar .
+```
+
+### Start PostgreSQL
+
+Start the local PostgreSQL service using Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+### Run the application container
+
+Ensure PostgreSQL is running through Docker Compose and your `.env.local` variables are loaded into the terminal. The database URL below is specific to the local development setup.
+
+Then run:
+
+```bash
+docker run --rm \
+  --name bill-radar \
+  -p 8080:8080 \
+  -e DB_URL="jdbc:postgresql://host.docker.internal:5433/bill_radar" \
+  -e DB_USERNAME="$DB_USERNAME" \
+  -e DB_PASSWORD="$DB_PASSWORD" \
+  bill-radar
+```
+
+The `host.docker.internal` hostname allows the application container to connect to PostgreSQL exposed on the host machine.
+
+Open **http://localhost:8080** to access the dashboard.
+
+Stop the application container with `Ctrl+C`. PostgreSQL can be stopped separately using `docker compose down`.
 
 ## Configuration and Sample Data
 
@@ -250,7 +291,7 @@ Engineering considerations: Keep financial calculations, budget thresholds, and 
 
 ### Phase 5: Operational visibility and deployment
 
-- Containerize the application for reproducible deployments.
+- Improve container security and optimize production deployments.
 - Add CI checks for tests, formatting, and build failures.
 - Introduce application health checks and metrics.
 - Add dashboards for API performance, import failures, and database health.
