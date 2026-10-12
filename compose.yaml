@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: bill-radar-postgres
+    environment:
+      POSTGRES_DB: bill_radar
+      POSTGRES_USER: bill_radar
+      POSTGRES_PASSWORD: bill_radar_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - bill-radar-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bill_radar -d bill_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bill-radar-data:

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <meta name="description" content="Bill Radar gives engineering and finance teams a clear view of cloud spend and budget risk.">
+  <title>Bill Radar · Cloud spend, in focus</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Bill Radar home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-name">bill<span>radar</span></span>
+      </a>
+
+      <div class="workspace-label">WORKSPACE</div>
+      <div class="workspace-switcher">
+        <span class="workspace-avatar">R</span>
+        <span class="workspace-copy"><strong>Bill Radar</strong><small>Cloud cost workspace</small></span>
+        <span class="switcher-chevron" aria-hidden="true">⌄</span>
+      </div>
+
+      <nav class="nav-list">
+        <a class="nav-item active" href="#overview"><span class="nav-glyph" aria-hidden="true">◫</span>Overview</a>
+        <a class="nav-item" href="#budget-alerts"><span class="nav-glyph" aria-hidden="true">↗</span>Budget watch<span id="nav-alert-count" class="nav-count">—</span></a>
+        <a class="nav-item" href="#workloads"><span class="nav-glyph" aria-hidden="true">▤</span>Workloads</a>
+        <a class="nav-item" href="#data-quality"><span class="nav-glyph" aria-hidden="true">⌁</span>Data quality</a>
+        <a class="nav-item" href="#activity"><span class="nav-glyph" aria-hidden="true">◷</span>Run history</a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="environment-card">
+          <span class="environment-dot"></span>
+          <div><strong>Demo environment</strong><small>Synthetic billing data</small></div>
+        </div>
+        <div class="sidebar-foot">BILL RADAR <span>·</span> MVP 0.1</div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Bill Radar</span><span class="crumb-slash">/</span><strong id="view-title">Overview</strong></div>
+        <div class="topbar-actions">
+          <div class="connection-status"><span id="health-dot" class="status-dot"></span><span id="health-text">Connecting to database</span></div>
+          <button id="btn-webhook-preview" class="button button-quiet" type="button"><span aria-hidden="true">{ }</span> Webhook payload</button>
+          <button id="btn-ingest" class="button button-dark" type="button"><span aria-hidden="true">↻</span> Run ingestion</button>
+        </div>
+      </header>
+
+      <section class="page-intro">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-line"></span> CLOUD COST CONTROL</div>
+          <h1>Cloud spend, <em>in focus.</em></h1>
+          <p>Know what you're spending today. See where the month is heading.</p>
+        </div>
+        <div class="period-card">
+          <span class="period-label">BILLING PERIOD</span>
+          <strong id="billing-period">October 2026</strong>
+          <span id="as-of-date" class="period-date">As of 12 October</span>
+        </div>
+      </section>
+
+      <section class="status-banner" aria-live="polite">
+        <div class="status-banner-copy">
+          <span class="status-kicker">THE MONTH AT A GLANCE</span>
+          <h2 id="status-headline">Your spend is being checked.</h2>
+          <p id="status-description">Connecting your billing data and budget signals.</p>
+        </div>
+        <div class="status-banner-side">
+          <span id="kpi-status-badge" class="status-pill status-unknown">CHECKING</span>
+          <span class="status-side-note">Forecast, not a final bill</span>
+        </div>
+        <div class="banner-decoration" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Key cost metrics">
+        <article class="metric-card metric-spend">
+          <div class="metric-topline"><span class="metric-label">Month-to-date spend</span><span class="metric-symbol" aria-hidden="true">↘</span></div>
+          <div id="kpi-mtd-spend" class="metric-value">€—</div>
+          <div id="kpi-untagged-spend" class="metric-foot">Loading spend data…</div>
+          <div class="metric-rule"><span id="mtd-budget-line"></span></div>
+        </article>
+        <article class="metric-card metric-forecast">
+          <div class="metric-topline"><span class="metric-label">Projected month-end</span><span class="metric-symbol" aria-hidden="true">⌁</span></div>
+          <div id="kpi-projected-spend" class="metric-value">€—</div>
+          <div id="kpi-forecast-formula" class="metric-foot">Based on current daily run rate</div>
+          <div class="metric-mini-label"><span>FORECAST</span><span id="forecast-confidence-label">31-day month</span></div>
+        </article>
+        <article class="metric-card metric-budget">
+          <div class="metric-topline"><span class="metric-label">Total budget</span><span class="metric-symbol" aria-hidden="true">◎</span></div>
+          <div id="kpi-total-budget" class="metric-value">€—</div>
+          <div id="kpi-headroom" class="metric-foot">Budget headroom</div>
+          <div class="metric-mini-label"><span>ALL WORKLOADS</span><span id="budget-coverage-label">5 budgets</span></div>
+        </article>
+        <article class="metric-card metric-utilization">
+          <div class="metric-topline"><span class="metric-label">Forecast budget use</span><span class="metric-symbol" aria-hidden="true">%</span></div>
+          <div id="kpi-projected-util" class="metric-value">—%</div>
+          <div class="utilization-track"><span id="overall-util-bar"></span></div>
+          <div id="utilization-caption" class="metric-foot">Projected against total budget</div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel alert-panel" id="budget-alerts">
+          <div class="panel-heading">
+            <div><span class="section-overline">NEEDS ATTENTION</span><h2>Budget watch</h2></div>
+            <span id="alerts-count-badge" class="count-chip">— alerts</span>
+          </div>
+          <div id="alerts-container" class="alerts-list"><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+          <div class="panel-bottom-note"><span class="note-dot"></span> Alerts are based on actual spend and a deterministic run-rate forecast.</div>
+        </article>
+
+        <article class="panel workload-panel" id="workloads">
+          <div class="panel-heading">
+            <div><span class="section-overline">WHERE IT GOES</span><h2>Spend by workload</h2></div>
+            <span class="legend"><span class="legend-spend"></span> Forecast <span class="legend-budget"></span> Budget</span>
+          </div>
+          <div id="workload-chart" class="workload-chart"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+          <div class="chart-footnote">Bars show projected month-end spend against each workload's budget.</div>
+        </article>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-heading table-heading">
+          <div><span class="section-overline">DETAILS, NOT GUESSWORK</span><h2>Workload budget review</h2></div>
+          <div id="last-updated" class="last-updated">Waiting for first sync</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>WORKLOAD</th><th>SPEND TO DATE</th><th>MONTHLY BUDGET</th><th>FORECAST</th><th>PROJECTED USE</th><th>HEADROOM / OVERRUN</th><th>STATUS</th></tr></thead>
+            <tbody id="workloads-tbody"><tr><td colspan="7" class="table-empty">Loading workload analysis…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel quality-panel" id="data-quality">
+        <div class="panel-heading">
+          <div><span class="section-overline">TRUST THE INPUTS</span><h2>Data quality</h2></div>
+          <span class="quality-source">AWS-style + Azure-style exports</span>
+        </div>
+        <div class="quality-grid">
+          <div class="quality-metric"><span class="quality-number" id="dq-processed">—</span><span class="quality-name">Rows received</span><span class="quality-detail">Across both providers</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-accepted">—</span><span class="quality-name">Records retained</span><span class="quality-detail">Available for analysis</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-duplicates">—</span><span class="quality-name">Duplicates skipped</span><span class="quality-detail">Not counted twice</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-untagged">—</span><span class="quality-name">Untagged records</span><span class="quality-detail">Still included in total spend</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-credits">—</span><span class="quality-name">Credit rows</span><span class="quality-detail">Reduce net spend</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-invalid">—</span><span class="quality-name">Invalid rows</span><span class="quality-detail">Rejected during parsing</span></div>
+          <div class="quality-metric"><span class="quality-number" id="dq-conversions">—</span><span class="quality-name">Currency conversions</span><span class="quality-detail">Normalized to EUR</span></div>
+        </div>
+      </section>
+
+      <section class="panel activity-panel" id="activity">
+        <div class="panel-heading">
+          <div><span class="section-overline">WHAT THE PIPELINE DID</span><h2>Recent imports</h2></div>
+          <span class="activity-caption">Latest 5 executions</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>EXECUTION</th><th>STARTED</th><th>DURATION</th><th>STATUS</th><th>PROCESSED / NEW</th><th>SKIPPED</th><th>NET SPEND</th></tr></thead>
+            <tbody id="history-tbody"><tr><td colspan="7" class="table-empty">Loading execution history…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="app-footer"><span class="footer-brand">bill<span>radar</span></span><span>Built for clearer cloud-cost decisions.</span><span>Demo data · Not connected to live cloud accounts</span></footer>
+    </main>
+  </div>
+
+  <div id="webhook-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="webhook-modal-title" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header"><div><span class="section-overline">INTEGRATION PREVIEW</span><h2 id="webhook-modal-title">Webhook payload</h2></div><button id="modal-close" class="modal-close" type="button" aria-label="Close preview">×</button></div>
+      <p class="modal-intro">This is the JSON that could be passed to an alert destination. No webhook is sent.</p>
+      <div class="modal-body"><pre><code id="webhook-json">Loading payload…</code></pre></div>
+      <div class="modal-footer"><span class="modal-footnote">Preview only · No external delivery</span><button id="btn-copy-webhook" class="button button-dark" type="button">Copy JSON</button></div>
+    </div>
+  </div>
+
+  <div id="ingestion-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ingestion-modal-title" aria-hidden="true">
+    <div class="modal-content ingestion-modal-content">
+      <div class="modal-header"><div><span class="section-overline">INGESTION EXECUTION</span><h2 id="ingestion-modal-title">Ingestion run complete</h2></div><button id="ingestion-modal-close" class="modal-close" type="button" aria-label="Close ingestion results">×</button></div>
+      <p id="ingestion-result-intro" class="modal-intro">The billing pipeline has finished.</p>
+      <div class="ingestion-result-content">
+        <div id="ingestion-pipeline-steps" class="ingestion-pipeline-steps"></div>
+        <div id="ingestion-result-stats" class="ingestion-result-stats"></div>
+        <div id="ingestion-result-note" class="ingestion-result-note"></div>
+      </div>
+      <div class="modal-footer"><span id="ingestion-execution-id" class="modal-footnote">Execution details</span><button id="ingestion-modal-done" class="button button-dark" type="button">Done</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/js/app.js"></script>
+</body>
+</html>

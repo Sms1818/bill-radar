@@ -1,0 +1,15 @@
+{
+  "month": "2026-10",
+  "as_of": "2026-10-12",
+  "currency": "EUR",
+  "fx_to_usd": {
+    "EUR": 1.12
+  },
+  "budgets": {
+    "checkout": 8035.71,
+    "search": 5357.14,
+    "analytics": 4464.29,
+    "ml-training": 10714.29,
+    "internal-tools": 2008.93
+  }
+}

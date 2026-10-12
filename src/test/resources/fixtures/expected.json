@@ -1,0 +1,19 @@
+{
+  "breach": [
+    "analytics",
+    "ml-training"
+  ],
+  "warning": [
+    "internal-tools"
+  ],
+  "ok": [
+    "checkout",
+    "search"
+  ],
+  "data_quality": {
+    "untagged_aws_rows": "about 6%",
+    "mixed_currency": "EUR",
+    "negative_rows": 1,
+    "duplicate_rows": 1
+  }
+}
