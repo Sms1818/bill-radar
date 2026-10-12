@@ -1,344 +1,268 @@
 # Bill Radar
 
-> **Cloud Cost Visibility & Budget Risk MVP**
-> *Synthetic-Data Proof of Concept & MVP*
+**Cloud Cost Monitoring and Budget Forecasting**
 
-Bill Radar is an automated cloud-cost visibility and budget-risk engine designed for multi-cloud environments. It imports synthetic billing exports modeled after AWS Cost & Usage Reports (CUR) and Azure Cost Management exports, normalizes their disparate schemas and currencies into a unified EUR data model, forecasts month-end spend via deterministic run-rate calculations, identifies budget overruns and warnings, and presents interactive insights through a real-time dashboard and REST API.
+Bill Radar is a cloud cost visibility application that imports billing data from AWS-style and Azure-style CSV exports, normalizes costs into a reporting currency, tracks spending against configured budgets, and estimates potential budget breaches.
 
----
+The goal is to make cloud spending easier to understand and help teams identify cost overruns before they become surprises.
 
-## 1. Architecture & Product Overview
+## Key Features
 
-```
-                        +----------------------------+
-                        |   sample-data/budgets.json |
-                        | (As-of date, limits, FX)   |
-                        +--------------+-------------+
-                                       |
-+--------------------------+           v
-| AWS CUR Export (CSV)     +--> [ BillingCsvImporter ]
-+--------------------------+           |
-| Azure Cost Export (CSV)  +-->        v
-+--------------------------+   [ CurrencyConversionService ] (USD -> EUR @ 1.12)
-                                       |
-                                       v
-                               [ WorkflowService ] <==> [ PostgreSQL 17 ]
-                              (Fingerprint Dedup)        (billing_records,
-                                       |                  workflow_executions)
-                                       v
-                            [ CostAnalysisService ]
-                         (Run-rate forecast & alerts)
-                                       |
-                   +-------------------+-------------------+
-                   |                                       |
-                   v                                       v
-         [ REST API Controllers ]                [ WebhookService ]
-         (/api/costs, /api/alerts, ...)     (Simulated Slack / Alert JSON)
-                   |
-                   v
-      [ Frontend Dashboard UI ]
-      (HTML5 / CSS3 / Vanilla JS)
+- **Billing data ingestion:** Import cloud billing records from CSV files.
+- **Cost normalization:** Convert supported billing currencies into a common reporting currency.
+- **Spending analytics:** View month-to-date spending and analyze costs across services and resource groups.
+- **Budget monitoring:** Compare actual spending against configured budgets.
+- **Budget forecasting:** Estimate projected spending and flag potential budget breaches.
+- **Untagged cost visibility:** Identify spending associated with resources that lack the expected tags.
+- **REST API:** Expose cost summaries and analytics to the dashboard.
+- **Automated testing:** Validate core application behavior with automated tests.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[AWS / Azure Billing CSVs] --> B[CSV Importer]
+    C[Budget and FX Configuration] --> D[Cost Processing]
+    B --> D
+
+    D --> E[Currency Normalization]
+    E --> F[Cost Analytics and Budget Evaluation]
+    F --> G[Forecasting and Breach Detection]
+    F --> H[(PostgreSQL)]
+
+    G --> H
+    H --> I[Spring Boot REST API]
+    I --> J[Cost Monitoring Dashboard]
 ```
 
-### Core Architecture Highlights
-- **Normalized Ingestion Pipeline**: Ingests raw AWS and Azure exports, strips provider-specific idiosyncrasies, extracts workload tags (including embedded JSON tags in Azure), and maps all records to a unified schema.
-- **Idempotent Ingestion & Deduplication**: Employs SHA-256 fingerprinting across `(provider, usageDate, service, region, cost, currency, workload)` to ensure that re-ingesting datasets does not create duplicate records or double-count spend.
-- **Financial Precision**: All calculations utilize `BigDecimal` with explicit scale and `RoundingMode.HALF_UP` to prevent floating-point inaccuracies.
-- **Deterministic Forecasting**: Projects month-end spend based on the configured billing month and reference `as_of` date (`2026-10-12`).
-- **Observability & History**: Full audit trail of workflow executions and data-quality metrics persisted directly into PostgreSQL.
+### How the application works
 
----
+1. **Import:** Billing records are read from CSV files and validated.
+2. **Normalize:** Accepted records are converted into the configured reporting currency using the configured exchange-rate values.
+3. **Persist:** Processed billing data is stored in PostgreSQL.
+4. **Analyze:** The application calculates spending summaries, identifies untagged costs, and evaluates budget utilization.
+5. **Forecast:** Spending projections are compared with configured budgets to identify potential breaches.
+6. **Present:** The REST API supplies the data used by the dashboard.
 
-## 2. Prerequisites
+## Technology Stack
 
-- **macOS** (Apple Silicon or Intel)
-- **Java 21** or later (`java -version`)
-- **Docker & Docker Compose** (for PostgreSQL 17)
-- **Maven Wrapper** (`./mvnw` bundled in repository)
-- **curl** or modern web browser (Safari, Chrome, Firefox)
+| Area | Technology |
+|---|---|
+| Language | Java 21 |
+| Backend framework | Spring Boot |
+| API layer | REST APIs |
+| Database | PostgreSQL |
+| Persistence | Spring Data JPA / Hibernate |
+| Build and dependency management | Maven |
+| Local infrastructure | Docker Compose |
+| Testing | JUnit and the project's configured test dependencies |
+| Billing ingestion | CSV processing |
+| Cost intelligence | Currency normalization, budget evaluation, and spending forecasts |
 
----
+## Prerequisites
 
-## 3. Setup and Run Instructions (macOS)
+Install the following before running the project:
 
-### Step 1: Start PostgreSQL with Docker Compose
-From the root of the project directory:
+- Java 21
+- Docker Desktop with Docker Compose
+- Git
+
+The Maven Wrapper (`mvnw`) is included, so a separate Maven installation should not be necessary.
+
+## Getting Started
+
+### 1. Clone the repository
 
 ```bash
-docker compose up -d postgres
+git clone https://github.com/Sms1818/bill-radar.git
+cd bill-radar
 ```
 
-Verify that PostgreSQL 17 is healthy and running on port `5433`:
+Replace `YOUR_USERNAME` with the GitHub account that hosts the repository.
+
+### 2. Configure environment variables
+
+Create a file named `.env.local` manually in the project root, alongside `pom.xml` and `compose.yaml`.
+
+Add the following variables:
+
+```dotenv
+DB_URL=jdbc:postgresql://localhost:5433/bill_radar
+DB_USERNAME=bill_radar
+DB_PASSWORD=bill_radar_dev
+```
+
+The default local development credentials match the PostgreSQL configuration in `compose.yaml`. If you change the database credentials, update both `.env.local` and the corresponding PostgreSQL environment variables in `compose.yaml`.
+
+**Important:** Spring Boot does not automatically load `.env.local`. Before running Maven, load the variables into your current terminal session:
+
+```bash
+set -a
+source .env.local
+set +a
+```
+
+The application uses these variables to configure its database connection.
+
+The `.env.local` file is excluded from Git. Never commit real credentials, API keys, or production secrets.
+
+### 3. Start PostgreSQL
+
+From the project root, run:
+
+```bash
+docker compose up -d
+```
+
+The local application connects to PostgreSQL through port `5433` on your machine. The database container uses its own PostgreSQL port, `5432`.
+
+Check the container status:
+
 ```bash
 docker compose ps
 ```
 
-*Database connection defaults (configured in `compose.yaml` and `application.properties`):*
-- Host: `localhost`
-- Port: `5433`
-- Database: `bill_radar`
-- Username: `bill_radar`
-- Password: `bill_radar_dev`
+### 4. Run the automated tests
 
-If you want to rehearse the **first-ingestion** demo from a clean local database, remove the local demo database volume before starting the app. This deletes only this project's local PostgreSQL demo data:
+Load the environment variables if you have opened a new terminal session:
 
 ```bash
-docker compose down -v
-docker compose up -d postgres
+set -a
+source .env.local
+set +a
 ```
 
-Skip `down -v` if you want to keep the existing demo data; the next run will correctly demonstrate idempotent re-ingestion instead.
-
-### Step 2: Build and Run Application
-Run the Spring Boot application using the bundled Maven wrapper:
-
-```bash
-./mvnw spring-boot:run
-```
-
-The application will start on port `8080`.
-The dashboard opens without silently running an import. Use **Run ingestion** to execute the bundled AWS-style and Azure-style CSV pipeline; a run-results dialog shows each processing stage and the saved/skipped record counts. Existing database records are safely skipped on repeat runs to prevent double-counting.
-
----
-
-## 4. Dashboard Demonstration Steps
-
-1. Open your web browser and navigate to:
-   ```
-   http://localhost:8080/
-   ```
-2. **Run the ingestion pipeline first**:
-   - Click **Run ingestion**. The result dialog walks through reading the two source files, detecting duplicates, reconciling against the ledger, and recalculating budgets and forecasts.
-   - On a clean database, expect `134` source rows processed, `133` new records saved, and `1` duplicate source row skipped.
-   - If the database already contains this dataset, expect `0` new records and `133` existing records skipped, plus the one duplicate source row. That is the idempotency check, not a failed import.
-3. **Review High-Level KPIs**:
-   - Review month-to-date spend, projected month-end spend, total EUR budget, and overall status. These figures use the checked-in synthetic fixtures and configured EUR/USD rate of `1.12`.
-4. **Inspect Active Budget Alerts**:
-   - Review the `analytics` and `ml-training` breach alerts and the `internal-tools` warning.
-5. **Examine Workload Spend**:
-   - Compare spend vs budget across `checkout`, `search`, `analytics`, `ml-training`, and `internal-tools`.
-6. **Inspect Data Quality**:
-   - Rows processed: `134` (AWS-style: 97, Azure-style: 37)
-   - Accepted records: `133`
-   - Duplicate source rows: `1`
-   - Untagged records: `7` (~7.2%)
-   - Negative credits: `1`
-   - USD-to-EUR conversions on the initial run: `128` (rate: `1.12`)
-7. **Preview Webhook Payload**:
-   - Click **Webhook payload** to inspect the JSON prepared for an alert destination. No external webhook is sent.
-
----
-
-## 5. REST API Documentation & Examples
-
-All endpoints return JSON responses. Stack traces are never leaked in error scenarios.
-
-### Health Check
-```bash
-curl -s http://localhost:8080/api/health
-```
-```json
-{
-  "status": "UP",
-  "database": "CONNECTED",
-  "application": "bill-radar",
-  "timestamp": "2026-10-12T09:47:50.129532Z"
-}
-```
-
-### Trigger Ingestion
-```bash
-curl -s -X POST http://localhost:8080/api/ingest
-```
-```json
-{
-  "executionId": "EXEC-1791798314817-9EB283",
-  "status": "SUCCESS",
-  "recordsProcessed": 134,
-  "recordsAccepted": 0,
-  "recordsSkipped": 134,
-  "untaggedRecords": 7,
-  "duplicateRecords": 1,
-  "creditRecords": 1,
-  "currencyConversions": 128,
-  "totalSpend": 11471.54,
-  "alertsGenerated": 3
-}
-```
-
-### Overall Cost Summary
-```bash
-curl -s http://localhost:8080/api/costs/summary
-```
-```json
-{
-  "billingMonth": "2026-10",
-  "asOfDate": "2026-10-12",
-  "elapsedDays": 12,
-  "daysInMonth": 31,
-  "currency": "EUR",
-  "monthToDateSpend": 11471.54,
-  "totalBudget": 31712.96,
-  "budgetUtilizationPercent": 36.17,
-  "remainingBudget": 20241.42,
-  "dailyAverageSpend": 955.96,
-  "projectedMonthEndSpend": 29634.81,
-  "projectedBudgetOverrunOrHeadroom": 2078.15,
-  "projectedUtilizationPercent": 93.45,
-  "untaggedSpend": 657.34,
-  "untaggedRecordCount": 7,
-  "totalRecordCount": 133,
-  "overallStatus": "BREACH"
-}
-```
-
-### Workload Breakdown & Forecasts
-```bash
-curl -s http://localhost:8080/api/costs/workloads
-```
-```json
-[
-  {
-    "workload": "analytics",
-    "monthToDateSpend": 1975.32,
-    "budget": 4629.63,
-    "budgetUtilizationPercent": 42.67,
-    "remainingBudget": 2654.31,
-    "dailyAverageSpend": 164.61,
-    "projectedMonthEndSpend": 5102.91,
-    "projectedBudgetOverrunOrHeadroom": -473.28,
-    "projectedOverrunAmount": 473.28,
-    "projectedUtilizationPercent": 110.22,
-    "status": "BREACH",
-    "recordCount": 24,
-    "providerSpend": { "AWS": 1975.32 }
-  },
-  {
-    "workload": "internal-tools",
-    "monthToDateSpend": 739.09,
-    "budget": 2083.33,
-    "budgetUtilizationPercent": 35.48,
-    "remainingBudget": 1344.24,
-    "dailyAverageSpend": 61.59,
-    "projectedMonthEndSpend": 1909.32,
-    "projectedBudgetOverrunOrHeadroom": 174.01,
-    "projectedOverrunAmount": 0.00,
-    "projectedUtilizationPercent": 91.65,
-    "status": "WARNING",
-    "recordCount": 23,
-    "providerSpend": { "AWS": 739.09 }
-  }
-]
-```
-
-### Active Budget Alerts
-```bash
-curl -s http://localhost:8080/api/alerts
-```
-
-### Data Quality Statistics
-```bash
-curl -s http://localhost:8080/api/data-quality
-```
-```json
-{
-  "rowsProcessed": 134,
-  "untaggedRows": 7,
-  "duplicateRowsSkipped": 1,
-  "invalidRows": 0,
-  "creditRows": 1,
-  "currencyConversions": 128
-}
-```
-
-### Workflow Execution History
-```bash
-curl -s http://localhost:8080/api/workflow/history
-```
-
-### Webhook Preview Payload
-```bash
-curl -s http://localhost:8080/api/webhooks/preview
-```
-
----
-
-## 6. Financial & Analytical Assumptions
-
-### A. Synthetic Data Disclaimer
-All billing records, cloud resource names, and exchange rates used in this project are **synthetic test fixtures**. This project does not connect to live AWS or Azure cloud accounts, nor does it query external banking APIs.
-
-### B. Currency Normalization
-- All internal budgets, stored costs, and forecast totals use **EUR (€)**.
-- Exchange rates are configured in `sample-data/budgets.json`.
-- The configured fixture defines `EUR: 1.12` (EUR to USD). Therefore, USD charges are converted to EUR by dividing by `1.12`:
-  $$\text{cost}_{\text{EUR}} = \frac{\text{cost}_{\text{USD}}}{1.12}$$
-- EUR amounts remain untouched.
-- Unsupported currencies (e.g., GBP, JPY) or negative exchange rates are rejected explicitly.
-
-### C. Run-Rate Forecasting Model
-Forecasting uses a transparent, deterministic run-rate projection formula:
-$$\text{projectedMonthEndSpend} = \frac{\text{monthToDateSpend}}{\text{elapsedDays}} \times \text{daysInMonth}$$
-
-- Billing Month: `2026-10` (October has `31` days).
-- Reference Date (`as_of`): `2026-10-12` (`12` elapsed days).
-- Deterministic behavior: If `elapsedDays == 0`, projected spend defaults safely to month-to-date spend without division by zero.
-- All monetary arithmetic uses `BigDecimal` with rounding mode `HALF_UP` to two decimal places.
-
-### D. Alert Thresholds
-Workload budget statuses and alerts are computed deterministically:
-1. **Actual Breach (`ACTUAL_OVERRUN`, CRITICAL)**:
-   Triggered if current month-to-date spend exceeds allocated budget:
-   $$\text{monthToDateSpend} > \text{budget}$$
-2. **Projected Breach (`PROJECTED_OVERRUN`, CRITICAL)**:
-   Triggered if projected month-end spend exceeds allocated budget:
-   $$\text{projectedMonthEndSpend} > \text{budget} \quad (\text{projected utilization} \ge 100\%)$$
-3. **Approaching Budget Warning (`APPROACHING_BUDGET`, WARNING)**:
-   Triggered if projected utilization is between 85% and 100%:
-   $$85.0\% \le \text{projectedUtilization} < 100.0\%$$
-4. **OK**:
-   Workload projected spend is under 85.0% of allocated budget.
-
----
-
-## 7. Data Quality & Deduplication Strategy
-
-- **Exact Duplicate Handling**: The sample Azure export contains an exact duplicate row on Day 9 (`ml-training` Virtual Machines). This row is detected via natural record fingerprinting and discarded during ingestion.
-- **Negative-Cost Credits**: AWS CUR export contains an Athena credit row (`-$150.00`). Credits are preserved, normalized to `-€138.89`, reduce the net month-to-date spend, and are explicitly tracked in the data-quality audit report.
-- **Untagged Records**: 7 AWS rows lack workload tags. Untagged rows are preserved, recorded in data-quality metrics, and added to the overall total spend.
-- **Database Idempotency**: Billing records stored in table `billing_records` carry a unique constraint on `record_fingerprint` (SHA-256 hash). If ingestion is triggered repeatedly, existing records are detected and skipped, preventing double-counting of spend.
-
----
-
-## 8. Running Automated Tests
-
-Run the full automated test suite using Maven:
+Then run:
 
 ```bash
 ./mvnw test
 ```
 
-### Test Coverage Highlights
-- `BillingCsvImporterTests`: Ingestion and schema parsing of AWS CUR and Azure Cost CSV exports.
-- `AzureTagExtractionTests`: Robust JSON tag parsing and tolerance to empty or malformed tags.
-- `CurrencyConversionServiceTests`: USD to EUR conversion, EUR preservation, negative credits, and currency rejection.
-- `BudgetServiceTests`: JSON budget configuration parsing, rate validation, and constraint checking.
-- `CostAnalysisServiceTests`: Run-rate forecast arithmetic, budget utilization percentages, alert generation, and credit handling.
-- `ExpectedJsonAcceptanceTests`: Acceptance oracle test asserting exact alignment with `expected.json` (breaches: `analytics`, `ml-training`; warning: `internal-tools`; ok: `checkout`, `search`).
-- `WorkflowServiceIntegrationTests`: Database persistence with PostgreSQL, intra-batch deduplication, idempotent re-ingestion, and execution history.
-- `BillingControllerIntegrationTests`: MockMvc integration tests for all 8 REST endpoints and static dashboard index.html.
-- `FailureHandlingTests`: Validates rejection of invalid configurations and ensures no stack traces leak in API error responses.
+The test suite validates the application's implemented behavior. Tests that require external infrastructure may need the relevant dependencies to be available.
 
----
+### 5. Start the application
 
-## 9. Known Limitations & Future Improvements
+With PostgreSQL running and the environment variables loaded:
 
-1. **Static Exchange Rates**: FX rates are configured via fixture JSON. A production enhancement would integrate ECB or Open Exchange Rates with daily historical fx caching.
-2. **Advanced Anomaly Forecasting**: The current forecast utilizes a simple, transparent run-rate model. Future iterations could incorporate moving averages (e.g., 7-day weighted mean) or seasonal ARIMA models.
-3. **Real Webhook Delivery**: Webhook preview generation is supported; integrating active webhook dispatch with exponential backoff retries and HMAC signatures would be an appropriate next step.
-4. **Authentication**: The current MVP is designed for internal demonstration without authentication; production environments would require OAuth2 / OIDC token protection.
+```bash
+./mvnw spring-boot:run
+```
 
+Once the application starts, open:
 
-### Dashboard navigation
+**http://localhost:8080**
 
-The dashboard uses focused navigation views (Overview, Budget watch, Workloads, Data quality, and Run history) instead of requiring the user to scroll through one long report. Clicking **Run ingestion** opens a run report showing source rows processed, new records saved, duplicate source rows, previously stored records skipped, currency-conversion count, credits, untagged records, and budget alerts generated.
+The dashboard uses the Spring Boot application to access the backend API.
+
+## Configuration and Sample Data
+
+### Budget configuration
+
+Budget settings are maintained in:
+
+`sample-data/budgets.json`
+
+The configuration defines the reporting currency, budget thresholds, and exchange-rate values used by the application.
+
+The included sample configuration uses EUR as the reporting currency. Its exchange rates are illustrative values for the demo, not live foreign-exchange rates.
+
+### Sample billing files
+
+The `sample-data/` directory includes:
+
+- `aws_cur_style.csv` — AWS-style billing records.
+- `azure_cost_style.csv` — Azure-style billing records.
+- `budgets.json` — budget and currency configuration.
+
+These files make it possible to explore the application's cost-processing workflow without connecting a live cloud account.
+
+### Example API endpoint
+
+Retrieve the cost summary:
+
+```http
+GET http://localhost:8080/api/costs/summary
+```
+
+The summary includes month-to-date spending, untagged spending, record counts, budget information, and projected spending where supported by the implementation.
+
+## Stopping the Application
+
+Stop the Spring Boot process with `Ctrl+C`.
+
+To stop PostgreSQL and the other Compose services:
+
+```bash
+docker compose down
+```
+
+This stops the containers without intentionally deleting the database's persisted volume.
+
+Avoid `docker compose down -v` unless you explicitly want to remove the associated volumes and potentially lose local database data.
+
+## Current Scope and Limitations
+
+Bill Radar is currently a **sample-data-driven cost monitoring MVP**.
+
+- Billing records are imported from CSV files rather than fetched from live AWS or Azure accounts.
+- Currency conversion uses configured exchange rates.
+- Forecasts are estimates based on the implemented forecasting logic.
+- Authentication, multi-tenant isolation, and production-grade access control are not claimed as implemented features.
+- Live alerts, cloud-provider synchronization, and production deployment integrations remain future work.
+
+These boundaries are intentional: the current application focuses on demonstrating the core billing ingestion, cost analysis, and budget-monitoring workflow.
+
+## Future Roadmap
+
+### Phase 1: Production-ready foundations
+
+- Add authentication and role-based authorization.
+- Introduce tenant-aware data isolation for multiple organizations.
+- Validate and version budget configuration.
+- Improve API error handling, input validation, and structured logging.
+- Add database migrations and stronger integration-test coverage where needed.
+
+### Phase 2: Live cloud billing integrations
+
+- Integrate with AWS Cost Explorer and supported AWS billing exports.
+- Integrate with Azure Cost Management.
+- Securely manage cloud credentials and permissions.
+- Schedule billing synchronization and support incremental imports.
+- Track import status, failures, retries, and duplicate records.
+
+### Phase 3: Cost alerts and anomaly detection
+
+- Configure budget thresholds at account, service, and project levels.
+- Send email or webhook alerts when spending crosses a threshold.
+- Detect unusual spending increases and unexpected resource costs.
+- Maintain alert history and prevent duplicate notifications.
+- Add configurable alert severity and escalation policies.
+
+### Phase 4: AI-Powered Cost Intelligence
+
+- **Natural-Language Cost Analysis:** Let users query cloud spending and understand cost drivers using LLMs.
+- **AI-Powered Insights:** Explain spending anomalies, budget overruns, and unusual cost patterns.
+- **Intelligent Cost Optimization:** Suggest potential cost-saving opportunities based on billing data.
+- **RAG-Based Cost Assistant:** Retrieve relevant billing records and historical summaries to provide context-aware, evidence-backed answers.
+- **Predictive Budget Intelligence:** Improve spending forecasts and identify potential budget breaches earlier.
+
+Engineering considerations: Keep financial calculations, budget thresholds, and currency conversions deterministic. Use AI for interpreting results, explaining patterns, and generating recommendations rather than relying on an LLM to perform authoritative financial calculations. Validate model outputs, enforce access controls, and track AI usage and failures.
+
+### Phase 5: Operational visibility and deployment
+
+- Containerize the application for reproducible deployments.
+- Add CI checks for tests, formatting, and build failures.
+- Introduce application health checks and metrics.
+- Add dashboards for API performance, import failures, and database health.
+- Deploy the application with managed PostgreSQL and production environment configuration.
+
+## Contributing
+
+1. Create a branch for your change.
+2. Keep changes focused and add tests for new behavior.
+3. Run `./mvnw test` before opening a pull request.
+4. Never commit local environment files, credentials, or sensitive billing data.
+
+## License
+
+No license has been specified yet. Until one is added, do not assume that the repository grants permission to reuse or redistribute its code.
