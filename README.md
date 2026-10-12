@@ -17,6 +17,14 @@ The goal is to make cloud spending easier to understand and help teams identify 
 - **REST API:** Expose cost summaries and analytics to the dashboard.
 - **Automated testing:** Validate core application behavior with automated tests.
 
+## Live Demo
+
+**Live Application:** [Bill Radar Dashboard](https://bill-radar.onrender.com/)
+
+**API Endpoint:** [Cost Summary API](https://bill-radar.onrender.com/api/costs/summary)
+
+Bill Radar is deployed on Render with a PostgreSQL database. The demo uses sample AWS-style and Azure-style billing data to demonstrate cost analytics, budget monitoring, and spending forecasts.
+
 ## Architecture
 
 ```mermaid
